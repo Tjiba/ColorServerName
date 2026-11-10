@@ -1,0 +1,13 @@
+{
+    "required": true,
+    "minVersion": "0.8",
+    "package": "fr.tjiba.colorservername.mixin",
+    "compatibilityLevel": "JAVA_25",
+    "client": [
+        "IEditBoxAccessor",
+        "ManageServerScreenMixin"
+    ],
+    "injectors": {
+        "defaultRequire": 1
+    }
+}

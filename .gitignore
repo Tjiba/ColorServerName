@@ -1,0 +1,12 @@
+.gradle/
+build/
+bin/
+run/
+logs/
+MODRINTH.md
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
