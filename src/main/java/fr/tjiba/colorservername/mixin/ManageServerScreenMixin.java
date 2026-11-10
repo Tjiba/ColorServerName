@@ -2,6 +2,8 @@ package fr.tjiba.colorservername.mixin;
 
 import fr.tjiba.colorservername.AmpersandCodes;
 import fr.tjiba.colorservername.ColorButton;
+import fr.tjiba.colorservername.CustomColorScreen;
+import fr.tjiba.colorservername.ServerNameText;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
@@ -10,8 +12,10 @@ import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.ManageServerScreen;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -34,6 +38,7 @@ public abstract class ManageServerScreenMixin extends Screen {
     @Shadow private EditBox nameEdit;
     @Shadow private EditBox ipEdit;
     @Shadow private Button addButton;
+    @Shadow @Final private ServerData serverData;
 
     @Unique private int colorservername$titleY;
     @Unique private int colorservername$previewY;
@@ -49,9 +54,9 @@ public abstract class ManageServerScreenMixin extends Screen {
 
     @Inject(method = "init", at = @At("TAIL"))
     private void colorservername$showAmpersands(CallbackInfo ci) {
-        String name = AmpersandCodes.toAmpersand(nameEdit.getValue());
-        // L'échappement des & ne doit pas tronquer un nom déjà enregistré.
-        colorservername$nameLimit = Math.max(32, name.length());
+        // Relire le nom complet : vanilla l'a déjà tronqué à 32 caractères dans init.
+        String name = AmpersandCodes.toAmpersand(serverData.name);
+        colorservername$nameLimit = Math.max(512, name.length());
         nameEdit.setMaxLength(colorservername$nameLimit);
         nameEdit.setValue(name);
         colorservername$limitValue = null;
@@ -115,8 +120,15 @@ public abstract class ManageServerScreenMixin extends Screen {
             Component label = Component.translatable("colorservername.style." + code);
             int x = left + (i % 3) * (fieldWidth + gap) / 3;
             int right = left + (i % 3 + 1) * (fieldWidth + gap) / 3 - gap;
+            int buttonWidth = right - x;
+            if (code == 'r') {
+                addRenderableWidget(Button.builder(Component.literal("+"), button -> colorservername$openColors())
+                    .bounds(right - rowHeight, stylesY + (i / 3) * (rowHeight + gap), rowHeight, rowHeight)
+                    .tooltip(Tooltip.create(Component.translatable("colorservername.custom"))).build());
+                buttonWidth -= rowHeight + gap;
+            }
             addRenderableWidget(Button.builder(label, button -> colorservername$insertCode(code))
-                .bounds(x, stylesY + (i / 3) * (rowHeight + gap), right - x, rowHeight)
+                .bounds(x, stylesY + (i / 3) * (rowHeight + gap), buttonWidth, rowHeight)
                 .tooltip(Tooltip.create(label.copy().append(" (&" + code + ")")))
                 .build());
         }
@@ -135,15 +147,40 @@ public abstract class ManageServerScreenMixin extends Screen {
         String value = nameEdit.getValue();
         int highlight = ((IEditBoxAccessor) nameEdit).colorservername$getHighlightPos();
         AmpersandCodes.Edit edit = AmpersandCodes.applyCode(value, nameEdit.getCursorPosition(), highlight, code, colorservername$nameLimit);
+        colorservername$applyEdit(edit);
+    }
+
+    @Unique
+    private void colorservername$applyEdit(AmpersandCodes.Edit edit) {
         colorservername$focusName = true;
         if (edit == null) {
-            colorservername$limitValue = value;
+            colorservername$limitValue = nameEdit.getValue();
             return;
         }
         nameEdit.setValue(edit.text());
         nameEdit.setCursorPosition(edit.end());
         nameEdit.setHighlightPos(edit.start());
         colorservername$limitValue = null;
+    }
+
+    @Unique
+    private void colorservername$openColors() {
+        String name = nameEdit.getValue();
+        String ip = ipEdit.getValue();
+        int cursor = nameEdit.getCursorPosition();
+        int highlight = ((IEditBoxAccessor) nameEdit).colorservername$getHighlightPos();
+        Runnable restore = () -> {
+            minecraft.setScreenAndShow(this);
+            nameEdit.setValue(name);
+            ipEdit.setValue(ip);
+            nameEdit.setCursorPosition(cursor);
+            nameEdit.setHighlightPos(highlight);
+            colorservername$focusName = true;
+        };
+        minecraft.setScreenAndShow(new CustomColorScreen(name, cursor, highlight, colorservername$nameLimit, edit -> {
+            restore.run();
+            colorservername$applyEdit(edit);
+        }, restore));
     }
 
     @ModifyArg(method = "extractRenderState", at = @At(value = "INVOKE",
@@ -192,7 +229,8 @@ public abstract class ManageServerScreenMixin extends Screen {
         graphics.text(font, label, x + 1, colorservername$previewY - 12, limit ? 0xffff5555 : 0xffa0a0a0);
         graphics.fill(x, colorservername$previewY, x + width, colorservername$previewY + colorservername$previewHeight, 0xff808080);
         graphics.fill(x + 1, colorservername$previewY + 1, x + width - 1, colorservername$previewY + colorservername$previewHeight - 1, 0xff080808);
-        String preview = name.isEmpty() ? Component.translatable("selectServer.defaultName").getString() : AmpersandCodes.toSection(name);
+        Component preview = name.isEmpty() ? Component.translatable("selectServer.defaultName")
+            : ServerNameText.parse(AmpersandCodes.toSection(name));
         graphics.enableScissor(x + 5, colorservername$previewY + 1, x + width - 5, colorservername$previewY + colorservername$previewHeight - 1);
         graphics.text(font, preview, x + 6, colorservername$previewY + (colorservername$previewHeight - 9) / 2, 0xffffffff);
         graphics.disableScissor();
