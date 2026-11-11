@@ -1,5 +1,8 @@
 {
     "colorservername.preview": "Aperçu",
+    "colorservername.preview_all": "Aperçu - nom entier",
+    "colorservername.preview_selection": "Aperçu - sélection",
+    "colorservername.format_help": "Insère un code au curseur ou formate le texte sélectionné. Place &l avant un dégradé pour le mettre en gras.",
     "colorservername.custom": "Couleurs HEX / Dégradé",
     "colorservername.hex_start": "Couleur / HEX début",
     "colorservername.hex_end": "HEX fin",

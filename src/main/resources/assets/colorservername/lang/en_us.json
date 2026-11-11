@@ -1,5 +1,8 @@
 {
     "colorservername.preview": "Preview",
+    "colorservername.preview_all": "Preview - editing whole name",
+    "colorservername.preview_selection": "Preview - editing selection",
+    "colorservername.format_help": "Insert a code at the cursor, or format selected text. Use &l before a gradient to make it bold.",
     "colorservername.custom": "Custom colors / Gradient",
     "colorservername.hex_start": "Color / Start HEX",
     "colorservername.hex_end": "End HEX",
